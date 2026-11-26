@@ -141,10 +141,22 @@ def test_local_server_health_ui_and_scan_api() -> None:
             assert resp.headers.get("X-Frame-Options") == "DENY"
             assert "PhishGuard Local Analyzer" in resp.read().decode("utf-8")
 
-        with urllib.request.urlopen(f"{base}/api/health") as resp:
+        with urllib.request.urlopen(f"{base}/api/health?probe=1") as resp:
             assert resp.status == 200
             health = json.loads(resp.read().decode("utf-8"))
             assert health["status"] == "ok"
+
+        too_long_req = urllib.request.Request(
+            f"{base}/api/scan",
+            data=json.dumps({"url": "https://example.com/" + "a" * 5000}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(too_long_req)
+            raise AssertionError("Expected HTTP 400 on oversized URL")
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 400
 
         req = urllib.request.Request(
             f"{base}/api/scan",
