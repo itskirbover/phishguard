@@ -98,7 +98,16 @@ PROTECTED_BRANDS: dict[str, frozenset[str]] = {
     "paypal": frozenset({"paypal.com", "paypal.me"}),
     "apple": frozenset({"apple.com", "icloud.com"}),
     "google": frozenset({"google.com", "googleapis.com", "googleusercontent.com", "gmail.com"}),
-    "microsoft": frozenset({"microsoft.com", "live.com", "outlook.com", "office.com", "azure.com"}),
+    "microsoft": frozenset(
+        {
+            "microsoft.com",
+            "microsoftonline.com",
+            "live.com",
+            "outlook.com",
+            "office.com",
+            "azure.com",
+        }
+    ),
     "amazon": frozenset({"amazon.com", "aws.amazon.com", "amzn.to"}),
     "netflix": frozenset({"netflix.com"}),
     "github": frozenset({"github.com", "githubusercontent.com"}),

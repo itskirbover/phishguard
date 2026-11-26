@@ -83,6 +83,13 @@ def test_brand_impersonation_and_typosquatting() -> None:
     assert score == 0.0
     assert brand is None
 
+    # Legitimate Microsoft Entra/SSO domain must not trigger impersonation
+    score, brand = detect_brand_impersonation(
+        parse_url("https://login.microsoftonline.com/common/oauth2/authorize")
+    )
+    assert score == 0.0
+    assert brand is None
+
     # Brand in subdomain on attacker domain
     score, brand = detect_brand_impersonation(
         parse_url("https://paypal.com.verify-user.tk/signin")
