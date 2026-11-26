@@ -68,6 +68,24 @@ def test_cli_batch_sarif_and_html_exports(tmp_path: Path) -> None:
     assert "https://paypal.com.verify-account.tk/login/confirm" in html_text
 
 
+def test_sarif_rule_names_are_alphanumeric_and_html_escapes_xss(tmp_path: Path) -> None:
+    xss_url = "https://paypal.com@xn--evil-login.tk/<script>alert(1)</script>"
+    url_file = tmp_path / "xss.txt"
+    url_file.write_text(xss_url + "\n", encoding="utf-8")
+
+    sarif_out = tmp_path / "xss.sarif"
+    main(["batch", str(url_file), "--format", "sarif", "--output", str(sarif_out)])
+    sarif = json.loads(sarif_out.read_text(encoding="utf-8"))
+    for rule in sarif["runs"][0]["tool"]["driver"]["rules"]:
+        assert rule["name"].isalnum(), f"Invalid SARIF rule name: {rule['name']}"
+
+    html_out = tmp_path / "xss.html"
+    main(["batch", str(url_file), "--format", "html", "--output", str(html_out)])
+    rendered = html_out.read_text(encoding="utf-8")
+    assert "<script>alert(1)</script>" not in rendered
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in rendered
+
+
 def test_cli_train_and_eval_roundtrip(tmp_path: Path, capsys) -> None:
     model_file = tmp_path / "custom.json"
     rc_train = main(
