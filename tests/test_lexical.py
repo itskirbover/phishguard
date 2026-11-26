@@ -54,6 +54,15 @@ def test_parse_url_ip_userinfo_port_and_punycode() -> None:
     assert parsed_idn.has_punycode
 
 
+def test_parse_url_schemeless_with_nested_redirect_url() -> None:
+    parsed = parse_url("evil.tk/redirect?next=https://paypal.com/signin")
+    assert parsed.scheme == "http"
+    assert parsed.hostname == "evil.tk"
+    assert parsed.registrable_domain == "evil.tk"
+    assert parsed.path == "/redirect"
+    assert parsed.query == "next=https://paypal.com/signin"
+
+
 def test_shannon_entropy_known_values() -> None:
     assert shannon_entropy("") == 0.0
     assert shannon_entropy("aaaa") == 0.0

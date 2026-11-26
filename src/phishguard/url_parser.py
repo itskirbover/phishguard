@@ -39,6 +39,7 @@ MULTI_PART_TLDS: frozenset[str] = frozenset(
 )
 
 _DEFANG_SCHEME_RE = re.compile(r"^hxxp(s?)://", re.IGNORECASE)
+_SCHEME_PREFIX_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*://")
 
 
 @dataclass(frozen=True)
@@ -150,7 +151,7 @@ def parse_url(raw_url: str) -> ParsedURL:
         )
 
     to_parse = refanged
-    if "://" not in to_parse:
+    if not _SCHEME_PREFIX_RE.match(to_parse):
         to_parse = f"http://{to_parse}"
 
     split = urlsplit(to_parse)
