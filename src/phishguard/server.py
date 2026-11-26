@@ -11,12 +11,14 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from typing import Any
+from urllib.parse import urlsplit
 
 from phishguard import __version__
 from phishguard.pipeline import PhishGuardPipeline
 
 MAX_BODY_BYTES = 128 * 1024  # 128 KB request cap
 MAX_BATCH_URLS = 200
+MAX_URL_LENGTH = 4096
 
 _UI_HTML = f"""<!DOCTYPE html>
 <html lang="en">
@@ -249,7 +251,8 @@ def create_server(
             return
 
         def do_GET(self) -> None:  # noqa: N802
-            if self.path == "/" or self.path == "/index.html":
+            route = urlsplit(self.path).path
+            if route == "/" or route == "/index.html":
                 body = _UI_HTML.encode("utf-8")
                 self.send_response(HTTPStatus.OK)
                 self._send_security_headers()
@@ -259,7 +262,7 @@ def create_server(
                 self.wfile.write(body)
                 return
 
-            if self.path == "/api/health":
+            if route == "/api/health":
                 self._send_json(
                     HTTPStatus.OK,
                     {
@@ -274,7 +277,8 @@ def create_server(
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path != "/api/scan":
+            route = urlsplit(self.path).path
+            if route != "/api/scan":
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
                 return
 
@@ -320,6 +324,13 @@ def create_server(
                 self._send_json(
                     HTTPStatus.BAD_REQUEST,
                     {"error": f"Provide between 1 and {MAX_BATCH_URLS} non-empty URLs."},
+                )
+                return
+
+            if any(len(u) > MAX_URL_LENGTH for u in urls):
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": f"Individual URL length cannot exceed {MAX_URL_LENGTH} characters."},
                 )
                 return
 

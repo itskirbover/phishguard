@@ -5,10 +5,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import html
 import json
+import re
 from typing import Any, Sequence
 
 from phishguard import __version__
 from phishguard.pipeline import ScanResult
+
+_NON_ALNUM_RE = re.compile(r"[^A-Za-z0-9]+")
+
+
+def _pascal_case_rule_name(title: str) -> str:
+    """Convert a human-readable rule title into a valid SARIF PascalCase identifier."""
+    words = [w for w in _NON_ALNUM_RE.split(title) if w]
+    return "".join(w[:1].upper() + w[1:] for w in words) or "PhishGuardRule"
 
 
 def _risk_bar(probability: float, width: int = 24) -> str:
@@ -97,7 +106,7 @@ def to_sarif_report(
             if sig.rule_id not in rules_by_id:
                 rules_by_id[sig.rule_id] = {
                     "id": sig.rule_id,
-                    "name": sig.title.replace(" ", ""),
+                    "name": _pascal_case_rule_name(sig.title),
                     "shortDescription": {"text": sig.title},
                     "defaultConfiguration": {
                         "level": "error" if sig.severity == "high" else "warning"

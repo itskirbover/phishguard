@@ -72,6 +72,8 @@ def _cmd_explain(args: argparse.Namespace) -> int:
 def _cmd_batch(args: argparse.Namespace) -> int:
     pipe = _load_pipeline(args.model)
     urls = _read_url_list(args.input)
+    if not urls:
+        raise ValueError(f"No URLs found in input '{args.input}'.")
     results = pipe.predict_batch(urls, top_k=args.top_k)
 
     if args.format == "json":
@@ -282,7 +284,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    return int(args.func(args))
+    try:
+        return int(args.func(args))
+    except (FileNotFoundError, ValueError, json.JSONDecodeError, OSError) as exc:
+        print(f"phishguard error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

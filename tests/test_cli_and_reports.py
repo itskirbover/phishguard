@@ -68,6 +68,24 @@ def test_cli_batch_sarif_and_html_exports(tmp_path: Path) -> None:
     assert "https://paypal.com.verify-account.tk/login/confirm" in html_text
 
 
+def test_sarif_rule_names_are_alphanumeric_and_html_escapes_xss(tmp_path: Path) -> None:
+    xss_url = "https://paypal.com@xn--evil-login.tk/<script>alert(1)</script>"
+    url_file = tmp_path / "xss.txt"
+    url_file.write_text(xss_url + "\n", encoding="utf-8")
+
+    sarif_out = tmp_path / "xss.sarif"
+    main(["batch", str(url_file), "--format", "sarif", "--output", str(sarif_out)])
+    sarif = json.loads(sarif_out.read_text(encoding="utf-8"))
+    for rule in sarif["runs"][0]["tool"]["driver"]["rules"]:
+        assert rule["name"].isalnum(), f"Invalid SARIF rule name: {rule['name']}"
+
+    html_out = tmp_path / "xss.html"
+    main(["batch", str(url_file), "--format", "html", "--output", str(html_out)])
+    rendered = html_out.read_text(encoding="utf-8")
+    assert "<script>alert(1)</script>" not in rendered
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in rendered
+
+
 def test_cli_train_and_eval_roundtrip(tmp_path: Path, capsys) -> None:
     model_file = tmp_path / "custom.json"
     rc_train = main(
@@ -123,10 +141,22 @@ def test_local_server_health_ui_and_scan_api() -> None:
             assert resp.headers.get("X-Frame-Options") == "DENY"
             assert "PhishGuard Local Analyzer" in resp.read().decode("utf-8")
 
-        with urllib.request.urlopen(f"{base}/api/health") as resp:
+        with urllib.request.urlopen(f"{base}/api/health?probe=1") as resp:
             assert resp.status == 200
             health = json.loads(resp.read().decode("utf-8"))
             assert health["status"] == "ok"
+
+        too_long_req = urllib.request.Request(
+            f"{base}/api/scan",
+            data=json.dumps({"url": "https://example.com/" + "a" * 5000}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(too_long_req)
+            raise AssertionError("Expected HTTP 400 on oversized URL")
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 400
 
         req = urllib.request.Request(
             f"{base}/api/scan",
@@ -163,3 +193,21 @@ def test_local_server_health_ui_and_scan_api() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_cli_returns_exit_code_1_on_missing_or_empty_inputs(tmp_path: Path, capsys) -> None:
+    rc_missing = main(["batch", str(tmp_path / "does_not_exist.txt")])
+    assert rc_missing == 1
+    assert "phishguard error:" in capsys.readouterr().err
+
+    empty_file = tmp_path / "empty.txt"
+    empty_file.write_text("# comment only\n\n", encoding="utf-8")
+    rc_empty = main(["batch", str(empty_file)])
+    assert rc_empty == 1
+    assert "No URLs found" in capsys.readouterr().err
+
+    bad_model = tmp_path / "bad_model.json"
+    bad_model.write_text("{invalid-json", encoding="utf-8")
+    rc_bad_model = main(["scan", "https://example.com", "--model", str(bad_model)])
+    assert rc_bad_model == 1
+    assert "phishguard error:" in capsys.readouterr().err
