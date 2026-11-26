@@ -1,0 +1,13 @@
+# Safe benign URLs
+https://github.com/SimplifyJobs/Summer2027-Internships
+https://docs.python.org/3/library/urllib.parse.html
+https://accounts.google.com/signin/v2/identifier
+https://login.microsoftonline.com/common/oauth2/authorize
+https://www.paypal.com/signin
+
+# Suspicious / phishing patterns (offline lexical & ML analysis only)
+https://paypal.com.verify-account.tk/login/confirm
+http://198.51.100.42:8080/microsoft/login/verify
+https://arnazon-security-update.xyz/account/billing
+https://apple.com@secure-login-9921.click/signin
+https://xn--pypal-4ve.com/webscr?cmd=_login-run
