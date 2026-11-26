@@ -193,3 +193,21 @@ def test_local_server_health_ui_and_scan_api() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_cli_returns_exit_code_1_on_missing_or_empty_inputs(tmp_path: Path, capsys) -> None:
+    rc_missing = main(["batch", str(tmp_path / "does_not_exist.txt")])
+    assert rc_missing == 1
+    assert "phishguard error:" in capsys.readouterr().err
+
+    empty_file = tmp_path / "empty.txt"
+    empty_file.write_text("# comment only\n\n", encoding="utf-8")
+    rc_empty = main(["batch", str(empty_file)])
+    assert rc_empty == 1
+    assert "No URLs found" in capsys.readouterr().err
+
+    bad_model = tmp_path / "bad_model.json"
+    bad_model.write_text("{invalid-json", encoding="utf-8")
+    rc_bad_model = main(["scan", "https://example.com", "--model", str(bad_model)])
+    assert rc_bad_model == 1
+    assert "phishguard error:" in capsys.readouterr().err
